@@ -1,61 +1,40 @@
 name: Perform Mixeway Scan
-
-on: [push]
-
+on:
+  push:
+    branches:
+      - master
 jobs:
-
   mixeway-scan:
-
     name: Mixeway Scanning
-
     runs-on: ubuntu-latest
-
     steps:
-
       - uses: actions/checkout@v1
-
       - name: Prepare variables
-
         id: vars
-
         shell: bash
-
         run: |
-
           echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})"
-
           echo "::set-output name=sha_short::$(git rev-parse HEAD)"
-
       - name: Prepare Mixeway docker image
-
         run: |
-
           docker pull mixeway/scanner:latest
-
       - name: Run Scan
-
         run: |
-
           docker run \
-
             -e OSS_USERNAME=pczrska008@gmail.com \
-
-            -e OSS_KEY=sonatype_pat_J5uLBHJgEwKJ1upxZm2NkM-lIKd_N3G_a7iCk7-w7IuLmptR>\
-
+            -e OSS_KEY=sonatype_pat_J5uLBHJgEwKJ1upxZm2NkM-lIKd_N3G_a7iCk7-w7IuLmptR \
             -e MIXEWAY_URL=https://hub.mixeway.io \
-
             -e MIXEWAY_KEY=23a66d02-0ada-4320-a2c2-3858e029b5ad \
-
             -e MIXEWAY_PROJECT_ID=204 \
-
             -e MODE=STANDALONE \
-
             -e MIXEWAY_PROJECT_NAME=S01169793_lab_secure_app \
-
             -e COMMIT_ID=${{ steps.vars.outputs.sha_short }} \
-
             -e BRANCH=${{ steps.vars.outputs.branch }} \
-
             -v ${{ github.workspace }}:/opt/sources \
-
-            mixeway/scanner:latest
+            mixeway/scanner:latest > result.log
+          if grep -q '"severity"' result.log; then
+            echo "Vulnerabilities found! Failing the job."
+            exit 1
+          else
+            echo "No vulnerabilities found."
+          fi
